@@ -1,3 +1,4 @@
+use crate::assembler::program_parsers::program_parser;
 use crate::vm::VM;
 use std;
 use std::io::{self, Write};
@@ -55,29 +56,33 @@ impl REPL {
                     }
                 }
                 _ => {
-                    let results = self.parse_hex(buffer);
-                    match results {
-                        Ok(bytes) => {
-                            for byte in bytes {
-                                self.vm.add_byte(byte);
-                            }
-                        }
-                        Err(_e) => {
-                            println!("Unable to decode hex string. Please enter 4 groups of 2 hex characters.");
+                    let program = match program_parser(buffer) {
+                        Ok((_, program)) => program,
+                        Err(_) => {
+                            println!("Unable to parse input");
+                            continue;
                         }
                     };
+                    self.vm.program.append(&mut program.to_bytes());
                     self.vm.run_once();
                 }
             }
         }
     }
 
+    #[allow(dead_code)]
     fn parse_hex(&mut self, i: &str) -> Result<Vec<u8>, ParseIntError> {
-        let bytes = i.split(" ");
+        let bytes = i.split(' ');
         let results: Result<Vec<u8>, ParseIntError> = bytes
             .into_iter()
             .map(|byte| u8::from_str_radix(byte, 16))
             .collect();
         results
+    }
+}
+
+impl Default for REPL {
+    fn default() -> Self {
+        Self::new()
     }
 }

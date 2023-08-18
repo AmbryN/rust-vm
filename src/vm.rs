@@ -89,11 +89,7 @@ impl VM {
             Opcode::EQ => {
                 let register1 = self.registers[self.next_8_bits() as usize];
                 let register2 = self.registers[self.next_8_bits() as usize];
-                if register1 == register2 {
-                    self.equal_flag = true;
-                } else {
-                    self.equal_flag = false;
-                }
+                self.equal_flag = register1 == register2;
                 self.next_8_bits();
             }
             Opcode::JEQ => {
@@ -124,19 +120,19 @@ impl VM {
     fn decode_opcode(&mut self) -> Opcode {
         let opcode = Opcode::from(self.program[self.pc]);
         self.pc += 1;
-        return opcode;
+        opcode
     }
 
     fn next_8_bits(&mut self) -> u8 {
         let result = self.program[self.pc];
         self.pc += 1;
-        return result;
+        result
     }
 
     fn next_16_bits(&mut self) -> u16 {
         let result = ((self.program[self.pc] as u16) << 8) | self.program[self.pc + 1] as u16;
         self.pc += 2;
-        return result;
+        result
     }
 }
 
@@ -153,7 +149,7 @@ pub mod tests {
     #[test]
     fn test_opcode_hlt() {
         let mut test_vm = VM::new();
-        let test_bytes = vec![0, 0, 0, 0];
+        let test_bytes = vec![11, 0, 0, 0];
         test_vm.program = test_bytes;
         test_vm.run();
         assert_eq!(test_vm.pc, 1);
@@ -171,7 +167,7 @@ pub mod tests {
     #[test]
     fn test_load_opcode() {
         let mut test_vm = VM::new();
-        test_vm.program = vec![1, 0, 1, 244]; // 500 en binaire u16 little endian
+        test_vm.program = vec![0, 0, 1, 244]; // 500 en binaire u16 little endian
         test_vm.run();
         assert_eq!(test_vm.registers[0], 500);
     }
@@ -180,14 +176,12 @@ pub mod tests {
     fn test_opcode_add() {
         let mut test_vm = VM::new();
         let test_bytes = vec![
-            1, 0, 0, 10, // LOAD $0 #10 : Charger 10 dans reg 0
-            1, 1, 0, 15, // LOAD $1 #15 : Charger 15 dans reg 1
-            2, 0, 1, 2, //ADD $0 $1 $2 : Ajouter reg 0 et 1 dans reg 2
+            0, 0, 0, 10, // LOAD $0 #10 : Charger 10 dans reg 0
+            0, 1, 0, 15, // LOAD $1 #15 : Charger 15 dans reg 1
+            1, 0, 1, 2, //ADD $0 $1 $2 : Ajouter reg 0 et 1 dans reg 2
         ];
         test_vm.program = test_bytes;
-        test_vm.run_once();
-        test_vm.run_once();
-        test_vm.run_once();
+        test_vm.run();
         assert_eq!(test_vm.registers[2], 25);
     }
 
@@ -195,9 +189,9 @@ pub mod tests {
     fn test_opcode_sub() {
         let mut test_vm = VM::new();
         let test_bytes = vec![
-            1, 0, 0, 15, // LOAD $0 #10 : Charger 10 dans reg 0
-            1, 1, 0, 10, // LOAD $1 #15 : Charger 15 dans reg 1
-            3, 0, 1, 2, // SUB $0 $1 $2 : Soustraire reg 0 et 1 dans reg 2
+            0, 0, 0, 15, // LOAD $0 #10 : Charger 10 dans reg 0
+            0, 1, 0, 10, // LOAD $1 #15 : Charger 15 dans reg 1
+            2, 0, 1, 2, // SUB $0 $1 $2 : Soustraire reg 0 et 1 dans reg 2
         ];
         test_vm.program = test_bytes;
         test_vm.run_once();
@@ -210,9 +204,9 @@ pub mod tests {
     fn test_opcode_mul() {
         let mut test_vm = VM::new();
         let test_bytes = vec![
-            1, 0, 0, 10, // LOAD $0 #10 : Charger 10 dans reg 0
-            1, 1, 0, 15, // LOAD $1 #15 : Charger 15 dans reg 1
-            4, 0, 1, 2, // MUL $0 $1 $2 : Multplier reg 0 et 1 dans reg 2
+            0, 0, 0, 10, // LOAD $0 #10 : Charger 10 dans reg 0
+            0, 1, 0, 15, // LOAD $1 #15 : Charger 15 dans reg 1
+            3, 0, 1, 2, // MUL $0 $1 $2 : Multplier reg 0 et 1 dans reg 2
         ];
         test_vm.program = test_bytes;
         test_vm.run_once();
@@ -225,9 +219,9 @@ pub mod tests {
     fn test_opcode_div() {
         let mut test_vm = VM::new();
         let test_bytes = vec![
-            1, 0, 0, 20, // LOAD $0 #10 : Charger 10 dans reg 0
-            1, 1, 0, 15, // LOAD $1 #15 : Charger 15 dans reg 1
-            5, 0, 1, 2, // DIV $0 $1 $2 : Diviser reg 0 et 1 dans reg 2
+            0, 0, 0, 20, // LOAD $0 #10 : Charger 10 dans reg 0
+            0, 1, 0, 15, // LOAD $1 #15 : Charger 15 dans reg 1
+            4, 0, 1, 2, // DIV $0 $1 $2 : Diviser reg 0 et 1 dans reg 2
         ];
         test_vm.program = test_bytes;
         test_vm.run_once();
@@ -241,7 +235,7 @@ pub mod tests {
     fn test_jmp_opcode() {
         let mut test_vm = VM::new();
         test_vm.registers[0] = 1;
-        test_vm.program = vec![6, 0, 0, 0]; // JMP $0 : Saut vers pc = valeur reg 0, donc 1
+        test_vm.program = vec![5, 0, 0, 0]; // JMP $0 : Saut vers pc = valeur reg 0, donc 1
         test_vm.run_once();
         assert_eq!(test_vm.pc, 1);
     }
@@ -250,7 +244,7 @@ pub mod tests {
     fn test_jmpf_opcode() {
         let mut test_vm = VM::new();
         test_vm.registers[0] = 2;
-        test_vm.program = vec![7, 0, 0, 0];
+        test_vm.program = vec![6, 0, 0, 0];
         test_vm.run_once();
         assert_eq!(test_vm.pc, 4);
     }
@@ -259,11 +253,11 @@ pub mod tests {
     fn test_jmpb_opcode() {
         let mut test_vm = VM::new();
         test_vm.program = vec![
-            1, 0, 0, 10, // LOAD $0 #10 : Charger 10 dans reg 0
-            1, 1, 0, 15, // LOAD $1 #15 : Charger 15 dans reg 1
-            4, 0, 1, 2, // MUL $0 $1 $2 : Multiplier reg 0 et 1 dans reg 2
-            1, 3, 0, 18, // LOAD $3 #18
-            8, 3, 0, 0, // JMPB $3
+            0, 0, 0, 10, // LOAD $0 #10 : Charger 10 dans reg 0
+            0, 1, 0, 15, // LOAD $1 #15 : Charger 15 dans reg 1
+            3, 0, 1, 2, // MUL $0 $1 $2 : Multiplier reg 0 et 1 dans reg 2
+            0, 3, 0, 18, // LOAD $3 #18
+            7, 3, 0, 0, // JMPB $3
         ];
         test_vm.run_once();
         test_vm.run_once();
@@ -279,8 +273,8 @@ pub mod tests {
         test_vm.registers[0] = 10;
         test_vm.registers[1] = 10;
         test_vm.program = vec![
-            9, 0, 1, 0, // EQ $0 $1 : reg 0 est-il égal reg 1
-            9, 0, 1, 0, // EQ $0 $1 : reg 0 est-il égal reg 1
+            8, 0, 1, 0, // EQ $0 $1 : reg 0 est-il égal reg 1
+            8, 0, 1, 0, // EQ $0 $1 : reg 0 est-il égal reg 1
         ];
         test_vm.run_once();
         assert!(test_vm.equal_flag);
@@ -295,7 +289,7 @@ pub mod tests {
         let mut test_vm = VM::new();
         test_vm.registers[0] = 2;
         test_vm.equal_flag = true;
-        test_vm.program = vec![10, 0, 0, 0];
+        test_vm.program = vec![9, 0, 0, 0];
         test_vm.run_once();
         assert_eq!(test_vm.pc, 2);
     }
@@ -305,8 +299,14 @@ pub mod tests {
         let mut test_vm = VM::new();
         test_vm.registers[0] = 2;
         test_vm.equal_flag = false;
-        test_vm.program = vec![11, 0, 0, 0];
+        test_vm.program = vec![10, 0, 0, 0];
         test_vm.run_once();
         assert_eq!(test_vm.pc, 2);
+    }
+}
+
+impl Default for VM {
+    fn default() -> Self {
+        Self::new()
     }
 }

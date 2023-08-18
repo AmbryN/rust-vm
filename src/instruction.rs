@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Opcode {
     LOAD,
     ADD,
@@ -35,6 +35,26 @@ impl From<u8> for Opcode {
     }
 }
 
+impl From<&str> for Opcode {
+    fn from(value: &str) -> Self {
+        match value.to_uppercase().as_str() {
+            "LOAD" => Opcode::LOAD,
+            "ADD" => Opcode::ADD,
+            "SUB" => Opcode::SUB,
+            "MUL" => Opcode::MUL,
+            "DIV" => Opcode::DIV,
+            "JMP" => Opcode::JMP,
+            "JMPF" => Opcode::JMPF,
+            "JMPB" => Opcode::JMPB,
+            "EQ" => Opcode::EQ,
+            "JEQ" => Opcode::JEQ,
+            "JNEQ" => Opcode::JNEQ,
+            "HLT" => Opcode::HLT,
+            _ => Opcode::IGL,
+        }
+    }
+}
+
 pub struct Instruction {
     opcode: Opcode,
 }
@@ -59,5 +79,17 @@ mod tests {
     fn test_create_instruction() {
         let instruction = Instruction::new(Opcode::HLT);
         assert_eq!(instruction.opcode, Opcode::HLT);
+    }
+
+    #[test]
+    fn test_str_to_opcode() {
+        let str = "load";
+        assert_eq!(Opcode::LOAD, Opcode::from(str));
+        let str = "LOAD";
+        assert_eq!(Opcode::LOAD, Opcode::from(str));
+        let str = "ADD";
+        assert_eq!(Opcode::ADD, Opcode::from(str));
+        let str = "illegal";
+        assert_eq!(Opcode::IGL, Opcode::from(str));
     }
 }
