@@ -14,6 +14,9 @@ use self::{
     symbol::{Symbol, SymbolTable, SymbolType},
 };
 
+pub const PIE_HEADER_PREFIX: [u8; 4] = [45, 50, 49, 45];
+pub const PIE_HEADER_LENGTH: usize = 64;
+
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Op { code: Opcode },
@@ -38,11 +41,23 @@ impl Assembler {
         }
     }
 
+    fn write_pie_header(&self) -> Vec<u8> {
+        let mut header = Vec::with_capacity(PIE_HEADER_LENGTH);
+        header.append(&mut PIE_HEADER_PREFIX.to_vec());
+        header.fill(0);
+        header
+    }
+
     pub fn assemble(&mut self, raw: &str) -> Option<Vec<u8>> {
         match program_parser(raw) {
             Ok((_remainder, program)) => {
+                let mut assembled_program = self.write_pie_header();
+
                 self.process_first_phase(&program);
-                Some(self.process_second_phase(&program))
+                let mut body = self.process_second_phase(&program);
+
+                assembled_program.append(&mut body);
+                Some(assembled_program)
             }
             Err(e) => {
                 println!("There was an error assembling the code: {:?}", e);

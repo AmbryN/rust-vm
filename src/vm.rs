@@ -1,4 +1,4 @@
-use crate::instruction::Opcode;
+use crate::{assembler::PIE_HEADER_PREFIX, instruction::Opcode};
 
 pub struct VM {
     // Array simulating hardware registers
@@ -31,6 +31,8 @@ impl VM {
     }
 
     pub fn run(&mut self) {
+        self.verify_header();
+
         let mut is_done = false;
         while !is_done {
             is_done = self.execute_instruction();
@@ -39,6 +41,14 @@ impl VM {
 
     pub fn run_once(&mut self) {
         self.execute_instruction();
+    }
+
+    fn verify_header(&mut self) -> bool {
+        if self.program[0..4] != PIE_HEADER_PREFIX {
+            return false;
+        }
+        self.pc = 65;
+        true
     }
 
     fn execute_instruction(&mut self) -> bool {
@@ -150,6 +160,10 @@ impl VM {
         self.pc += 2;
         result
     }
+
+    pub fn add_bytes(&mut self, mut bytes: Vec<u8>) {
+        self.program.append(&mut bytes);
+    }
 }
 
 impl Default for VM {
@@ -160,7 +174,17 @@ impl Default for VM {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::assembler::PIE_HEADER_LENGTH;
+
     use super::*;
+
+    fn prepend_header(mut b: Vec<u8>) -> Vec<u8> {
+        let mut header = Vec::with_capacity(PIE_HEADER_LENGTH);
+        header.append(&mut PIE_HEADER_PREFIX.to_vec());
+        header.fill(0);
+        header.append(&mut b);
+        header
+    }
 
     #[test]
     fn test_createvm() {
@@ -171,6 +195,7 @@ pub mod tests {
     #[test]
     fn test_opcode_hlt() {
         let mut test_vm = VM::new();
+        prepend_header(test_vm.program);
         let test_bytes = vec![11, 0, 0, 0];
         test_vm.program = test_bytes;
         test_vm.run();
@@ -181,6 +206,7 @@ pub mod tests {
     #[should_panic]
     fn test_opcode_igl() {
         let mut test_vm = VM::new();
+        prepend_header(test_vm.program);
         let test_bytes = vec![200, 0, 0, 0];
         test_vm.program = test_bytes;
         test_vm.run();
@@ -189,6 +215,7 @@ pub mod tests {
     #[test]
     fn test_load_opcode() {
         let mut test_vm = VM::new();
+        prepend_header(test_vm.program);
         test_vm.program = vec![0, 0, 1, 244]; // 500 en binaire u16 little endian
         test_vm.run();
         assert_eq!(test_vm.registers[0], 500);
@@ -202,6 +229,7 @@ pub mod tests {
             0, 1, 0, 15, // LOAD $1 #15 : Charger 15 dans reg 1
             1, 0, 1, 2, //ADD $0 $1 $2 : Ajouter reg 0 et 1 dans reg 2
         ];
+        prepend_header(test_vm.program);
         test_vm.program = test_bytes;
         test_vm.run();
         assert_eq!(test_vm.registers[2], 25);
