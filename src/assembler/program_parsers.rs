@@ -4,7 +4,7 @@ use crate::assembler::instruction_parsers::{instruction_parser, AssemblerInstruc
 
 #[derive(Debug, PartialEq)]
 pub struct Program {
-    instructions: Vec<AssemblerInstruction>,
+    pub instructions: Vec<AssemblerInstruction>,
 }
 
 impl Program {
@@ -29,7 +29,7 @@ mod tests {
 
     #[test]
     fn test_parse_program() {
-        let result = program_parser("LOAD $0 #10LOAD $1 #15");
+        let result = program_parser("LOAD $0 #10\nLOAD $1 #15\n");
         assert!(result.is_ok());
 
         let (input, program) = result.unwrap();
@@ -39,7 +39,7 @@ mod tests {
 
     #[test]
     fn test_program_to_bytes() {
-        let result = program_parser("load $0 #100");
+        let result = program_parser("load $0 #100\n");
         assert_eq!(result.is_ok(), true);
         let (_, program) = result.unwrap();
         let bytecode = program.to_bytes();

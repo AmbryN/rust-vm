@@ -1,8 +1,11 @@
-use nom::{branch::alt, combinator::opt, IResult};
+use nom::{branch::alt, character::complete::newline, combinator::opt, IResult};
 
 use crate::assembler::{opcode_parsers::opcode_parser, operand_parsers::operand_parser, Token};
 
-use super::{directive_parsers::directive_parser, label_parsers::label_declaration_parser};
+use super::{
+    directive_parsers::directive_parser, label_parsers::label_declaration_parser,
+    symbol::SymbolTable,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct AssemblerInstruction {
@@ -57,10 +60,23 @@ impl AssemblerInstruction {
             }
         }
     }
+
+    pub fn is_label(&self) -> bool {
+        self.label.is_some()
+    }
+
+    pub fn label_name(&self) -> Option<String> {
+        if let Some(Token::LabelDeclaration { name }) = &self.label {
+            Some(name.to_owned())
+        } else {
+            None
+        }
+    }
 }
 
 pub fn instruction_parser(input: &str) -> IResult<&str, AssemblerInstruction> {
     let (input, instruction) = alt((instruction_combined, directive_parser))(input)?;
+    let (input, _) = opt(newline)(input)?;
 
     Ok((input, instruction))
 }
@@ -85,58 +101,6 @@ fn instruction_combined(input: &str) -> IResult<&str, AssemblerInstruction> {
     ))
 }
 
-// fn instruction_register_value_parser(input: &str) -> IResult<&str, AssemblerInstruction> {
-//     let (input, opcode) = opcode_parser(input)?;
-//     let (input, _) = multispace1(input)?;
-//     let (input, register) = register_parser(input)?;
-//     let (input, _) = multispace1(input)?;
-//     let (input, operand) = value_parser(input)?;
-
-//     Ok((
-//         input,
-//         AssemblerInstruction {
-//             opcode: Some(opcode),
-//             operand1: Some(register),
-//             operand2: Some(operand),
-//             operand3: None,
-//         },
-//     ))
-// }
-
-// fn instruction_opcode_only_parser(input: &str) -> IResult<&str, AssemblerInstruction> {
-//     let (input, opcode) = opcode_parser(input)?;
-
-//     Ok((
-//         input,
-//         AssemblerInstruction {
-//             opcode: Some(opcode),
-//             operand1: None,
-//             operand2: None,
-//             operand3: None,
-//         },
-//     ))
-// }
-
-// fn instruction_three_registers_parser(input: &str) -> IResult<&str, AssemblerInstruction> {
-//     let (input, opcode) = opcode_parser(input)?;
-//     let (input, _) = multispace1(input)?;
-//     let (input, register1) = register_parser(input)?;
-//     let (input, _) = multispace1(input)?;
-//     let (input, register2) = register_parser(input)?;
-//     let (input, _) = multispace1(input)?;
-//     let (input, register3) = register_parser(input)?;
-
-//     Ok((
-//         input,
-//         AssemblerInstruction {
-//             opcode: Some(opcode),
-//             operand1: Some(register1),
-//             operand2: Some(register2),
-//             operand3: Some(register3),
-//         },
-//     ))
-// }
-
 mod tests {
 
     use crate::instruction::Opcode;
@@ -157,7 +121,7 @@ mod tests {
                 opcode: Some(Token::Op { code: Opcode::LOAD }),
                 operand1: Some(Token::Register { reg_num: 0 }),
                 operand2: Some(Token::IntegerOperand { value: 10 }),
-                operand3: None
+                operand3: None,
             }
         );
         assert_eq!(input, "");
@@ -174,7 +138,7 @@ mod tests {
                 opcode: Some(Token::Op { code: Opcode::ADD }),
                 operand1: Some(Token::Register { reg_num: 0 }),
                 operand2: Some(Token::Register { reg_num: 1 }),
-                operand3: Some(Token::Register { reg_num: 2 })
+                operand3: Some(Token::Register { reg_num: 2 }),
             }
         );
         assert_eq!(input, "");
@@ -193,7 +157,7 @@ mod tests {
                 opcode: Some(Token::Op { code: Opcode::HLT }),
                 operand1: None,
                 operand2: None,
-                operand3: None
+                operand3: None,
             }
         );
         assert_eq!(input, "");
@@ -212,7 +176,7 @@ mod tests {
                 opcode: Some(Token::Op { code: Opcode::LOAD }),
                 operand1: Some(Token::Register { reg_num: 0 }),
                 operand2: Some(Token::IntegerOperand { value: 10 }),
-                operand3: None
+                operand3: None,
             }
         );
         assert_eq!(input, "");
