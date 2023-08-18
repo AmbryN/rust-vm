@@ -1,9 +1,14 @@
-use nom::{bytes::complete::tag_no_case, character::complete::alpha1, IResult};
+use nom::{
+    character::complete::{alpha1, multispace0},
+    IResult,
+};
 
 use crate::{assembler::Token, instruction::Opcode};
 
 pub fn opcode_parser(input: &str) -> IResult<&str, Token> {
     let (input, token) = alpha1(input)?;
+    let (input, _) = multispace0(input)?;
+
     let token = Token::Op {
         code: Opcode::from(token),
     };

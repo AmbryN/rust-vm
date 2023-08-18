@@ -11,6 +11,7 @@ pub struct VM {
     remainder: u32,
     // Result of last comparison
     equal_flag: bool,
+    heap: Vec<u8>,
 }
 
 impl VM {
@@ -21,6 +22,7 @@ impl VM {
             program: vec![],
             remainder: 0,
             equal_flag: false,
+            heap: vec![],
         }
     }
 
@@ -110,6 +112,20 @@ impl VM {
                     self.pc = target;
                 }
             }
+            Opcode::ALOC => {
+                let register = self.next_8_bits() as usize;
+                let bytes = self.registers[register];
+                let new_end = self.heap.len() as i32 + bytes;
+                self.heap.resize(new_end as usize, 0);
+            }
+            Opcode::INC => {
+                let register = self.next_8_bits() as usize;
+                self.registers[register] += 1;
+            }
+            Opcode::DEC => {
+                let register = self.next_8_bits() as usize;
+                self.registers[register] -= 1;
+            }
             _ => {
                 panic!("Unrecognized opcode found! Terminating!");
             }
@@ -133,6 +149,12 @@ impl VM {
         let result = ((self.program[self.pc] as u16) << 8) | self.program[self.pc + 1] as u16;
         self.pc += 2;
         result
+    }
+}
+
+impl Default for VM {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -303,10 +325,31 @@ pub mod tests {
         test_vm.run_once();
         assert_eq!(test_vm.pc, 2);
     }
-}
 
-impl Default for VM {
-    fn default() -> Self {
-        Self::new()
+    #[test]
+    fn test_aloc_opcode() {
+        let mut test_vm = VM::default();
+        test_vm.registers[0] = 1024;
+        test_vm.program = vec![12, 0, 0, 0];
+        test_vm.run_once();
+        assert_eq!(test_vm.heap.len(), 1024);
+    }
+
+    #[test]
+    fn test_inc_opcode() {
+        let mut test_vm = VM::default();
+        test_vm.registers[0] = 1;
+        test_vm.program = vec![13, 0, 0, 0];
+        test_vm.run_once();
+        assert_eq!(test_vm.registers[0], 2);
+    }
+
+    #[test]
+    fn test_dec_opcode() {
+        let mut test_vm = VM::default();
+        test_vm.registers[0] = 1;
+        test_vm.program = vec![14, 0, 0, 0];
+        test_vm.run_once();
+        assert_eq!(test_vm.registers[0], 0);
     }
 }
