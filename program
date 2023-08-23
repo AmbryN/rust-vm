@@ -1,3 +1,6 @@
+.data
+test: HLT
+.code
 LOAD $0 #10
 LOAD $1 #15
 ADD $0 $1 $2

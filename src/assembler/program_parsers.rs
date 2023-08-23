@@ -46,4 +46,11 @@ mod tests {
         assert_eq!(bytecode.len(), 4);
         println!("{:?}", bytecode);
     }
+
+    #[test]
+    fn test_complete_program() {
+        let test_program = ".data\nhello: .asciiz 'Hello everyone!'\n.code\nHLT";
+        let result = program_parser(test_program);
+        assert!(result.is_ok());
+    }
 }

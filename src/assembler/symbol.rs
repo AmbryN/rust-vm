@@ -1,4 +1,6 @@
-#[derive(Debug)]
+use std::collections::HashSet;
+
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Symbol {
     name: String,
     offset: u32,
@@ -15,7 +17,7 @@ impl Symbol {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum SymbolType {
     Label,
 }
@@ -27,7 +29,9 @@ pub struct SymbolTable {
 
 impl SymbolTable {
     pub fn new() -> SymbolTable {
-        SymbolTable { symbols: vec![] }
+        SymbolTable {
+            symbols: Vec::new(),
+        }
     }
 
     pub fn add_symbol(&mut self, symbol: Symbol) {
@@ -39,6 +43,20 @@ impl SymbolTable {
             .iter()
             .find(|symbol| symbol.name == s)
             .map(|symbol| symbol.offset)
+    }
+
+    pub fn has_symbol(&self, s: &Symbol) -> bool {
+        self.symbols.contains(s)
+    }
+
+    pub fn set_symbol_offset(&mut self, name: &str, offset: u32) {
+        self.symbols
+            .iter_mut()
+            .find(|item| item.name == name)
+            .map(|item| {
+                item.offset = offset;
+                return item;
+            });
     }
 }
 

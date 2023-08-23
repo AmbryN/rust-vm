@@ -23,10 +23,16 @@ fn main() {
             let mut asm = assembler::Assembler::new();
             let mut vm = vm::VM::new();
             let program = asm.assemble(&program);
-            if let Some(p) = program {
-                vm.add_bytes(p);
-                vm.run();
-                std::process::exit(0);
+            match program {
+                Ok(p) => {
+                    vm.add_bytes(p);
+                    vm.run();
+                    std::process::exit(0);
+                }
+                Err(e) => {
+                    println!("An error occured while assembling the code: {:?}", e);
+                    std::process::exit(1);
+                }
             }
         }
         None => {

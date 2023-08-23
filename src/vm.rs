@@ -37,6 +37,7 @@ impl VM {
         while !is_done {
             is_done = self.execute_instruction();
         }
+        std::process::exit(0);
     }
 
     pub fn run_once(&mut self) {
