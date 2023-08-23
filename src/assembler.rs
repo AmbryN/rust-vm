@@ -7,7 +7,7 @@ pub mod program_parsers;
 mod register_parsers;
 mod symbol;
 
-use nom::{error::Error, IResult};
+use nom::error::Error;
 
 use crate::instruction::Opcode;
 
@@ -33,8 +33,6 @@ pub enum Token {
 
 #[derive(Debug)]
 pub struct Assembler {
-    /// Tracks which phase the assember is in
-    phase: AssemblerPhase,
     /// Symbol table for constants and variables
     pub symbols: SymbolTable,
     /// The read-only data section constants are put in
@@ -54,12 +52,11 @@ pub struct Assembler {
 impl Assembler {
     pub fn new() -> Assembler {
         Assembler {
-            phase: AssemblerPhase::First,
             symbols: SymbolTable::new(),
+            sections: vec![],
             ro: vec![],
             bytecode: vec![],
             ro_offset: 0,
-            sections: vec![],
             current_section: None,
             current_instruction: 0,
         }
@@ -67,14 +64,38 @@ impl Assembler {
 
     pub fn assemble(&mut self, raw: &str) -> Result<Vec<u8>, AssemblerError> {
         let (_, program) = program_parser(raw)?;
+
+        self.extract_sections_and_labels(&program)?;
+
         let mut assembled_program = self.write_pie_header();
-
-        self.process_first_phase(&program)?;
-
         let mut body = self.process_second_phase(&program)?;
 
         assembled_program.append(&mut body);
+
         Ok(assembled_program)
+    }
+
+    fn extract_sections_and_labels(&mut self, p: &Program) -> Result<(), AssemblerError> {
+        for i in &p.instructions {
+            if i.is_section() {
+                let section: AssemblerSection =
+                    i.get_directive_name().unwrap().as_str().try_into()?;
+                self.sections.push(section);
+            } else if i.is_label() {
+                if self.sections.len() > 0 {
+                    if let Some(name) = i.get_label_name() {
+                        let symbol = Symbol::new(name, SymbolType::Label, 0);
+                        if self.symbols.has_symbol(&symbol) {
+                            return Err(AssemblerError::SymbolAlreadyDeclared { symbol });
+                        }
+                        self.symbols.add_symbol(symbol);
+                    } else {
+                        return Err(AssemblerError::StringConstantDeclaredWithoutLabel);
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     fn write_pie_header(&self) -> Vec<u8> {
@@ -84,22 +105,14 @@ impl Assembler {
         header
     }
 
-    fn process_first_phase(&mut self, p: &Program) -> Result<(), AssemblerError> {
-        self.extract_labels(p)?;
-        // if self.sections.len() != 2 {
-        //     Err(AssemblerError::InsufficientSections)
-        // } else {
-        self.phase = AssemblerPhase::Second;
-        Ok(())
-        // }
-    }
-
     fn process_second_phase(&mut self, p: &Program) -> Result<Vec<u8>, AssemblerError> {
         self.current_instruction = 0;
 
         let mut program = vec![];
         for i in &p.instructions {
-            if i.is_opcode() {
+            if i.is_section() {
+                continue;
+            } else if i.is_opcode() {
                 let mut bytes = i.to_bytes();
                 program.append(&mut bytes);
             } else if i.is_directive() {
@@ -110,68 +123,34 @@ impl Assembler {
         Ok(program)
     }
 
-    fn extract_labels(&mut self, p: &Program) -> Result<(), AssemblerError> {
-        for i in &p.instructions {
-            if i.is_label() {
-                if self.current_section.is_some() {
-                    if let Some(name) = i.get_label_name() {
-                        let symbol = Symbol::new(name, SymbolType::Label, 0);
-                        if self.symbols.has_symbol(&symbol) {
-                            return Err(AssemblerError::SymbolAlreadyDeclared);
-                        }
-                        self.symbols.add_symbol(symbol);
-                    } else {
-                        return Err(AssemblerError::StringConstantDeclaredWithoutLabel {
-                            instruction: self.current_instruction,
-                        });
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
     fn process_directive(&mut self, i: &AssemblerInstruction) -> Result<(), AssemblerError> {
         if let Some(directive_name) = i.get_directive_name() {
             if i.has_operands() {
-                match directive_name.as_ref() {
+                match directive_name.as_str() {
                     "asciiz" => return self.handle_asciiz(i),
                     _ => {
                         return Err(AssemblerError::UnknownDirectiveFound {
                             directive: directive_name,
                         })
                     }
-                };
+                }
             } else {
-                self.process_section_header(&directive_name)?;
-                Ok(())
+                return Err(AssemblerError::DirectiveWithoutOperand {
+                    directive: directive_name,
+                });
             }
-        } else {
-            println!("Directive has invalid name: {:?}", i);
-            Err(AssemblerError::DirectiveHasInvalidName)
         }
-    }
-
-    fn process_section_header(&mut self, header_name: &str) -> Result<(), AssemblerError> {
-        let new_section: AssemblerSection = header_name.try_into()?;
-        self.current_section = Some(new_section.clone());
-        self.sections.push(new_section);
-        Ok(())
+        return Err(AssemblerError::DirectiveHasInvalidName);
     }
 
     fn handle_asciiz(&mut self, i: &AssemblerInstruction) -> Result<(), AssemblerError> {
-        if self.phase != AssemblerPhase::Second {
-            return Err(AssemblerError::ShouldBeSecondPhase);
-        }
-
         if let Some(s) = i.get_string_constant() {
             if let Some(name) = i.get_label_name() {
                 self.symbols.set_symbol_offset(&name, self.ro_offset);
             } else {
                 // This would be someone typing:
                 // .asciiz 'Hello'
-                println!("Found a string constant with no associated label!");
-                return Err(AssemblerError::NoLabel);
+                return Err(AssemblerError::NoLabel { string: s });
             }
 
             // We'll read the string into the read-only section byte-by-byte
@@ -185,22 +164,15 @@ impl Assembler {
             Ok(())
         } else {
             // This just means someone typed `.asciiz` for some reason
-            println!("String constant following an .asciiz was empty");
             return Err(AssemblerError::NoStringConstant);
         }
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum AssemblerPhase {
-    First,
-    Second,
-}
-
 #[derive(Debug)]
 pub enum AssemblerError {
-    SymbolAlreadyDeclared,
-    StringConstantDeclaredWithoutLabel { instruction: u32 },
+    SymbolAlreadyDeclared { symbol: Symbol },
+    StringConstantDeclaredWithoutLabel,
     ParseError { error: String },
     InsufficientSections,
     UnknownDirectiveFound { directive: String },
@@ -208,7 +180,8 @@ pub enum AssemblerError {
     UnknownSectionFound,
     ShouldBeSecondPhase,
     NoStringConstant,
-    NoLabel,
+    NoLabel { string: String },
+    DirectiveWithoutOperand { directive: String },
 }
 
 impl From<nom::Err<nom::error::Error<&str>>> for AssemblerError {

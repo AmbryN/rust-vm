@@ -4,7 +4,7 @@ pub mod repl;
 pub mod vm;
 use std::{fs::File, io::Read, path::Path};
 
-use clap::{Arg, Parser, Subcommand};
+use clap::Parser;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -22,15 +22,14 @@ fn main() {
             let program = read_file(&file);
             let mut asm = assembler::Assembler::new();
             let mut vm = vm::VM::new();
-            let program = asm.assemble(&program);
-            match program {
-                Ok(p) => {
-                    vm.add_bytes(p);
+            match asm.assemble(&program) {
+                Ok(program) => {
+                    vm.add_bytes(program);
                     vm.run();
                     std::process::exit(0);
                 }
                 Err(e) => {
-                    println!("An error occured while assembling the code: {:?}", e);
+                    println!("An error occured while assembling: {:#?}", e);
                     std::process::exit(1);
                 }
             }

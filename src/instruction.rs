@@ -16,6 +16,7 @@ pub enum Opcode {
     INC,
     DEC,
     IGL,
+    PRTS,
 }
 
 impl From<u8> for Opcode {
@@ -36,6 +37,7 @@ impl From<u8> for Opcode {
             12 => Opcode::ALOC,
             13 => Opcode::INC,
             14 => Opcode::DEC,
+            15 => Opcode::PRTS,
             _ => Opcode::IGL,
         }
     }

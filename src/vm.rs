@@ -5,6 +5,8 @@ pub struct VM {
     pub registers: [i32; 32],
     // Program counter: which byte is being executed
     pc: usize,
+    // Read-Only data
+    ro_data: Vec<u8>,
     // Instructions of the program
     pub program: Vec<u8>,
     // Remainder of division operation
@@ -19,6 +21,7 @@ impl VM {
         VM {
             registers: [0; 32],
             pc: 0,
+            ro_data: vec![],
             program: vec![],
             remainder: 0,
             equal_flag: false,
@@ -136,6 +139,29 @@ impl VM {
             Opcode::DEC => {
                 let register = self.next_8_bits() as usize;
                 self.registers[register] -= 1;
+            }
+            Opcode::PRTS => {
+                // PRTS takes one operand, either a starting index in the read-only section of the bytecode
+                // or a symbol (in the form of @symbol_name), which will look up the offset in the symbol table.
+                // This instruction then reads each byte and prints it, until it comes to a 0x00 byte, which indicates
+                // termination of the string
+                let starting_offset = self.next_16_bits() as usize;
+                let mut ending_offset = starting_offset;
+                let slice = self.ro_data.as_slice();
+                // TODO: Find a better way to do this. Maybe we can store the byte length and not null terminate? Or some form of caching where we
+                // go through the entire ro_data on VM startup and find every string and its ending byte location?
+                while slice[ending_offset] != 0 {
+                    ending_offset += 1;
+                }
+                let result = std::str::from_utf8(&slice[starting_offset..ending_offset]);
+                match result {
+                    Ok(s) => {
+                        print!("{}", s);
+                    }
+                    Err(e) => {
+                        println!("Error decoding string for prts instruction: {:#?}", e)
+                    }
+                };
             }
             _ => {
                 panic!("Unrecognized opcode found! Terminating!");

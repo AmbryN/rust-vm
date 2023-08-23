@@ -73,6 +73,13 @@ impl AssemblerInstruction {
         self.directive.is_some()
     }
 
+    pub fn is_section(&self) -> bool {
+        self.label.is_none()
+            && self.directive.is_some()
+            && self.opcode.is_none()
+            && self.operand1.is_none()
+    }
+
     pub fn get_directive_name(&self) -> Option<String> {
         match &self.directive {
             Some(Token::Directive { name }) => Some(name.clone()),
